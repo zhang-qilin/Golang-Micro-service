@@ -10,15 +10,20 @@ import (
 	pb "Golang-Micro-service/gRPC/hellow-client/proto"
 	"context"
 	"fmt"
-
+	
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 )
 
 func main() {
+	creds, _ := credentials.NewClientTLSFromFile("D:\\种子\\github.com\\Golang-Micro-service\\gRPC\\key\\test.pem", "*.zhangqilin.com") // *.zhangqilin.com这个域一般不会写死，一般都是通过url去获取的
+	
 	// 连接到server端，此处禁用安全传输，没有加密和验证
 	// grpc.Dial("127.0.0.1:9090",grpc.WithTransportCredentials(grpc.WithInsecure()))  // grpc.WithInsecure()  已被遗弃，可使用以下的insecure.NewCredentials()则代表不使用安全加密
-	conn, err := grpc.Dial("127.0.0.1:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// conn, err := grpc.Dial("127.0.0.1:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	
+	// 使用SSL/TLS加密传输
+	conn, err := grpc.Dial("127.0.0.1:9090", grpc.WithTransportCredentials(creds))
 	if err != nil {
 		fmt.Sprintf("Did Not Connect: %v\n", err)
 		return
