@@ -221,23 +221,151 @@ message UserRequest {
 }
 
 message UserResponse {
-	string name = 1;				// (位置1)
+	string name = 1;
 	int32 id = 2;
 	optional string email = 3;
-	repeated string phones = 4;		// (位置4)
+	repeated string phones = 4;
 }
 ```
 
-
-
 #### 嵌套消息
 
+可以其他消息类型中定义、使用消息类型，在下面的例子中，Person消息就定义在PersonInfo消息内，如下所示：
+
+```protobuf
+message PersonInfo {
+	message Person {
+		string name = 1;
+		int32 height = 2;
+		repeated int32 weight = 3;
+	}
+	repedted Person info = 1;
+}
+```
+
+如果是在它的父消息类型的外部重用这个消息类型，则需要以PersonInfo.Persond的形式去使用它，如下所示：
+
+```protobuf
+message PersonMessage {
+	PersonInfo.Person info = 1;
+}
+```
+
+当然也可以将消息嵌套任意多层，如下所示：
+
+```protobuf
+message Grandpa {				// Level 0
+	message Father {			// Level 1
+		message son {			// Level 2
+			string name = 1;
+			int32 age = 2;
+		}
+	}
+	message Uncle {				// Level 1
+		message Son {			// Level 2
+			string name = 1;
+			int32 age = 2;
+		}
+	}
+}
+```
+
 #### 服务定义(Service)
+
+如果想要将消息类型用在gRPC系统中，可以在.proto文件中定义一个RPC服务接口，protocol buffer 编译器将会根据所选择的不同语言生成服务接口以及存根。
+
+```protobuf
+service SrarchService {
+	// rpc 服务的函数名 (传入参数) 返回 (返回参数)
+	rpc Search (SearchRequest) returns (SearchResponse);
+}
+```
+
+上述代表标识，定义了一个RPC服务，该方法接收SearchRequest返回SearchResponse
 
 ## gRPC实例
 
 ### RPC和gRPC介绍
 
+RPC（Remote Procedure Call）远程过程调用协议，一种通过网络从远程计算机上请求服务，而不需要了解底层网络技术的协议，RPC它假定某些协议的存在，例如TCP/UDP等，为通信程序之间携带的数据。
 
+在OSI网络七层模型中，RPC跨域了传输层和应用层，RPC使得开发，包括网络分布式多程序在内得应用程序更加容易
 
-#### 
+过程是什么？过程是业务处理、计算任务，更直白的说，就是程序，就是像调用本地方法一样调用远程的过程。
+
+RPC采用客户端/服务端的模式，通过request-resoinse消息模式实现	
+
+![image-20230212103454875](README.assets/image-20230212103454875.png)
+
+gRPC里客户端应用可以像调用吧本地对象一样直接调用另外一台不同的计算上服务端应用的方法，使得我们我们能够更容易得创建分布式应用和服务。与需要RPC系统类似，也是基于以下理念，定义一个服务，指定其能够被远程调用得方法（包含参数得返回类型）。在服务端实现这个接口，并允许一个gRPC服务器来处理客户端调用。在客户端拥有一个存根能够像服务端一样的方法。
+
+![Concept Diagram](README.assets/landing-2.svg)
+
+官方网站：https://grpc.io
+
+底层协议：
+
+- HTTP2：https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md
+- GRPC-WEB：https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-WEB.md
+
+#### HTTP2
+
+![image-20230212110310721](README.assets/image-20230212110310721.png)
+
+- HTTP/1里header对于HTTP/2里的HEADERS frame
+- HTTP/1里的payload对于HTTP/2里的DATA frame
+
+gRPC把元数据放到HTTP/2 Headers里，请求参数序列化之后放到Data frame里
+
+基于HTTP/2协议的优点
+
+1. 公开标准
+2. HTTP/2 的前身是Google的SPDY，有经过实践检验
+3. HTTP/2 天然支持物联网、手机、浏览器
+4. 基于HTTP/2 多语言客户端实现容易
+   1. 每个练习的编程语言都会有成熟额HTTP/2 Client
+   2. HTTP/2 Client是经过充分尝试，可靠的
+   3. 用Client发送HTTP/2 请求的难度远低于用socket发送数据包/解析数据包
+5. HTTP/2 支持Stream 和流控
+6. 基于HTTP/2在Gateway/Proxy 很容易支持
+   1. Nginx 和Envot 都支持
+7. HTTP/2 安全性有保证
+   1. HTTP/2 天然支持SSL，当然gRPC可以跑在clear text 协议（即不加密）上。
+   2. 很多私有协议的RPC可能自己保障了一层TLS 支持，使用起来非常复杂。开发者是否有足够的安全知识？使用者是否配置对了？运维者是否能够正确理解？
+   3. HTTP/2 在公有网络上的传输上有保障，比如这个CRIME 攻击，私有协议很难保证没有这样子的漏洞。
+8. HTTP/2 鉴权成熟
+   1. 从HTTP/1 发展起来的鉴权系统已经很成熟，可以无缝用到HTTP/2 上。
+   2. 可以从前端到后端完全打通的鉴权，不需要做任何转换适应。
+
+基于HTTP/2 协议的缺点
+
+- RPC 的元数据的传输不够高效
+
+  经过HPAC 可以压缩HTTP Header，但是对于RPC 来说，前端一个函数调用，可以简化为一个int，只要两端去协商过一次，后面直接查表就可以了，不需要像HPACC那样编码解码。
+
+  可以考虑专门针对gRPC 做一个优化过的HTTP/2 解析器，较少一些通用的处理，感觉是可以在一定程度上提升性能。
+
+- HTTP/2 里一次gRPC调用需要要两次解码
+
+  一次是Headers Frame，一次是Data Frame。
+
+- HTTP/2 标准本身是只有一个TCP连接，但是实际在gRPC里是会有多个TCP 连接，使用时需要注意。
+
+**gRPC 基于HTTP/2 那么它的性能肯定不会是最顶尖的。但是对于RPC 来说中庸的QPS可以接受，通用和兼容性才是最重要的事情。**
+
+- 官方的benchmark：https://grpc.io/docs/guides/benchmarking.html
+- https://github.com/hank-whu/rpc-benchmark
+
+gRPC目前是k8s生态里的事实标准，而Kubernetes又是容器编排的事实标准。gRPC已经广泛应用于Istio体系，包括:
+
+- Envoy与Pilot(现在叫istiod)间的XDS协议
+- mixer的handler扩展协议
+- MCP(控制面的配置分发协议)
+
+在Cloud Native的潮流下，开放互通的需求必然会产生基于HTTP/2的RPC。
+
+#### 实例
+
+##### 服务端
+
+##### 客户端
