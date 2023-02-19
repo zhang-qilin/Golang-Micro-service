@@ -1,0 +1,11 @@
+// 指点当前proto语法版本，有2和3版本
+syntax = "proto3";
+// option go_package = "path;name";   // path表示生成的go文件的存放位置，会自动生成目录  name表示生成的go文件所属的包名
+option go_package = "../service";
+package service;
+
+//消息 传输的对象
+message User {
+string username = 1;
+    int32 age = 2;
+}
