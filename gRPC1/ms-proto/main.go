@@ -31,6 +31,4 @@ func main() {
 	}
 	fmt.Println(newUser)
 	fmt.Println(newUser.String())
-	
-	
 }
