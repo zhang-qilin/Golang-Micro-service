@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// gRPC客户端实现(无任何加密)
 func main() {
 	// 建立连接，端口是服务端开放的端口(8002)
 	conn, err := grpc.Dial(":8002",grpc.WithTransportCredentials(insecure.NewCredentials()))

@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// gRPC服务端实现(无任何加密)
 func main() {
 	rpcServer := grpc.NewServer()
 	
