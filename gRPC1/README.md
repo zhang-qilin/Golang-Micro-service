@@ -112,10 +112,10 @@ go get github.com/golang/protobuf/protoc-gen-go
 // 指点当前proto语法版本，有2和3版本
 syntax = "proto3";
 // option go_package = "path;name";   // path表示生成的go文件的存放位置，会自动生成目录  name表示生成的go文件所属的包名
-option go_package = ".;./service";
+option go_package = "../service";
 package service;
-
-massage User {
+// 消息 传输对象
+message User {
 	string username = 1;
 	int32 age = 2;
 }
@@ -504,7 +504,7 @@ func main() {
     // 没有证书会报错
 	conn, err := grpc.Dial(":8002", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatal("客户端连接不是服务端，", err)
+		log.Fatal("客户端连接不到服务端，", err)
 		return
 	}
     // 退出时关闭连接
